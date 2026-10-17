@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0F766E">
+  <meta name="description" content="GASPOL membantu Anda punya web tanpa koding dan tanpa membeli hosting. Aplikasi mulai dari Rp50.000, atau ikut kelas dari nol.">
+  <meta property="og:title" content="GASPOL — Mau bikin web tapi tidak bisa koding?">
+  <meta property="og:description" content="Kami bantu wujudkan, atau Anda belajar dari nol. Mulai dari Rp50.000, tanpa hosting.">
+  <title>GASPOL — Web tanpa koding</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css?v=3">
+  <script>
+    try {
+      if (localStorage.getItem("gaspol_theme") === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    } catch (e) {}
+  </script>
+</head>
+<body>
+  <a class="skip" href="#view">Loncat ke isi</a>
+  <header class="top">
+    <div class="bar">
+      <a class="brand" href="#/">
+        <span class="mark">G</span>
+        <span>
+          <strong id="brand-name">GASPOL</strong>
+          <small>Builder by Atang Wiharto</small>
+        </span>
+      </a>
+      <nav class="desk-nav" aria-label="Utama">
+        <a href="#/" data-nav="beranda">Beranda</a>
+        <a href="#/aplikasi" data-nav="aplikasi">Aplikasi</a>
+        <a href="#/kelas" data-nav="kelas">Kelas</a>
+        <a href="#/voucher" data-nav="voucher">Punya Kode</a>
+      </nav>
+      <div class="tools">
+        <button type="button" class="icon-btn" id="theme-btn" data-act="tema" aria-label="Mode gelap"></button>
+        <div id="user-slot"></div>
+      </div>
+    </div>
+  </header>
+  <main id="view" class="wrap" tabindex="-1"></main>
+  <footer class="footer">
+    <div class="foot-in">
+      <strong>GASPOL</strong>
+      <span>Builder by Atang Wiharto. Aplikasi mulai dari Rp50.000, kelas dipandu dari nol.</span>
+      <span>Data akun, pesanan, dan kelas pada situs ini tersimpan di peramban Anda. Rekening pembayaran masih contoh sampai diganti admin utama.</span>
+    </div>
+  </footer>
+  <nav class="tabbar" aria-label="Bawah">
+    <a href="#/" data-nav="beranda"><span data-icon="home"></span>Beranda</a>
+    <a href="#/aplikasi" data-nav="aplikasi"><span data-icon="box"></span>Aplikasi</a>
+    <a href="#/kelas" data-nav="kelas"><span data-icon="book"></span>Kelas</a>
+    <a href="#/akun" data-nav="akun"><span data-icon="user"></span>Akun</a>
+  </nav>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <div id="modal-root"></div>
+  <script src="js/store.js?v=3"></script>
+  <script src="js/app.js?v=3"></script>
+</body>
+</html>
