@@ -67,7 +67,16 @@
     home: svg('<path d="m4 10.5 8-6.5 8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"/>'),
     box: svg('<path d="m21 8-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>'),
     book: svg('<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/>'),
-    user: svg('<path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="8" r="4"/>')
+    user: svg('<path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="8" r="4"/>'),
+    code: svg('<path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="m14 4-4 16"/>'),
+    spark: svg('<path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><path d="m5.6 5.6 2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.2"/>'),
+    cloud: svg('<path d="M7 18h10a4 4 0 0 0 .2-8 5.5 5.5 0 0 0-10.6-1.4A3.5 3.5 0 0 0 7 18z"/>'),
+    gift: svg('<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M3 12h18M12 8v12"/><path d="M12 8c0-2.5-1.2-4-3-4s-2.2 1.2-1.2 2.4C8.6 7.4 12 8 12 8z"/><path d="M12 8c0-2.5 1.2-4 3-4s2.2 1.2 1.2 2.4C15.4 7.4 12 8 12 8z"/>'),
+    coffee: svg('<path d="M5 8h11v6a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4z"/><path d="M16 9h1.5a2.5 2.5 0 0 1 0 5H16"/><path d="M8 4v2M12 4v2"/>'),
+    sliders: svg('<path d="M4 7h16M4 12h16M4 17h16"/><circle cx="8" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="10" cy="17" r="2"/>'),
+    pick: svg('<rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><path d="m16 17.5 1.6 1.6 3-3.4"/>'),
+    card: svg('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 14h4"/>'),
+    play: svg('<circle cx="12" cy="12" r="9"/><path d="m9 8.5 7 3.5-7 3.5z"/>')
   };
 
   function esc(value) {
@@ -314,12 +323,12 @@
     const classes = GASPOL.classes();
     const wa = waLink("Halo GASPOL, saya ingin tanya soal web.");
     const features = [
-      ["Tanpa koding", "Anda tidak perlu menulis program untuk punya web sendiri."],
-      ["Tanpa ribet", "Pilih aplikasi, atau ikut kelas yang dipandu dari nol."],
-      ["Tanpa hosting", "Tidak perlu membeli hosting. Aplikasi berjalan di Google."],
-      ["Gratis seumur hidup", "Tidak ada iuran hosting yang harus diperpanjang."],
-      ["Mulai dari 50 ribu", "Ada aplikasi yang harganya mulai dari satu kopi."],
-      ["Bisa custom", "Butuh alur sendiri? Kirim kebutuhan dan budget."]
+      ["code", "#0f766e", "Tanpa koding", "Anda tidak perlu menulis program untuk punya web sendiri."],
+      ["spark", "#0d9488", "Tanpa ribet", "Pilih aplikasi, atau ikut kelas yang dipandu dari nol."],
+      ["cloud", "#115e59", "Tanpa hosting", "Tidak perlu membeli hosting. Aplikasi berjalan di Google."],
+      ["gift", "#047857", "Gratis seumur hidup", "Tidak ada iuran hosting yang harus diperpanjang."],
+      ["coffee", "#b45309", "Mulai dari 50 ribu", "Ada aplikasi yang harganya mulai dari satu kopi."],
+      ["sliders", "#0f766e", "Bisa custom", "Butuh alur sendiri? Kirim kebutuhan dan budget."]
     ];
     const faqs = [
       ["Apakah saya harus bisa koding?", "Tidak. Kami buatkan aplikasinya, atau Anda ikut kelas dan dipandu dari nol."],
@@ -349,14 +358,14 @@
       </div>
     </section>
     <section class="section">
-      <div class="features">${features.map(([title, text]) => `<article class="feature">${I.check}<div><strong>${title}</strong><p>${text}</p></div></article>`).join("")}</div>
+      <div class="features">${features.map(([icon, color, title, text]) => `<article class="feature"><span class="fico" style="--ico:${color}">${I[icon]}</span><div><strong>${title}</strong><p>${text}</p></div></article>`).join("")}</div>
     </section>
     <section class="section">
       <div class="section-head"><h2>Cara kerja</h2></div>
       <div class="grid-3">
-        <article class="card"><p class="kicker">01</p><h2>Pilih</h2><p>Aplikasi siap pakai, permintaan custom, atau kelas.</p></article>
-        <article class="card"><p class="kicker">02</p><h2>Bayar</h2><p>Transfer, QRIS, e-wallet, atau Lynk.id. Kelas selalu lewat Lynk.id.</p></article>
-        <article class="card"><p class="kicker">03</p><h2>Pakai</h2><p>Admin mencocokkan pembayaran. Kelas terbuka lewat kode voucher.</p></article>
+        <article class="card step"><span class="step-ico" style="--ico:#0f766e">${I.pick}</span><p class="kicker">01</p><h2>Pilih</h2><p>Aplikasi siap pakai, permintaan custom, atau kelas.</p></article>
+        <article class="card step"><span class="step-ico" style="--ico:#0d9488">${I.card}</span><p class="kicker">02</p><h2>Bayar</h2><p>Transfer, QRIS, e-wallet, atau Lynk.id. Kelas selalu lewat Lynk.id.</p></article>
+        <article class="card step"><span class="step-ico" style="--ico:#047857">${I.play}</span><p class="kicker">03</p><h2>Pakai</h2><p>Admin mencocokkan pembayaran. Kelas terbuka lewat kode voucher.</p></article>
       </div>
     </section>
     <section class="section">
@@ -821,7 +830,7 @@
     updateChrome();
     const view = document.getElementById("view");
     if (gagalSambung) {
-      view.innerHTML = `<section class="empty"><h1>Spreadsheet belum tersambung</h1><p>${esc(gagalSambung)}</p><button type="button" class="btn btn-primary" data-act="sambung-ulang">Coba lagi</button></section>`;
+      view.innerHTML = skeletonPage() + `<div class="sk-retry"><button type="button" class="btn btn-primary" data-act="sambung-ulang">Coba lagi</button></div>`;
       document.title = pageTitle;
       return;
     }
@@ -835,6 +844,16 @@
     else window.scrollTo(0, 0);
     const search = document.getElementById("live-q");
     if (search && liveQuery) applyLive(search.value);
+  }
+  function skLine(width) {
+    return `<span class="sk" style="width:${width}"></span>`;
+  }
+  function skeletonPage() {
+    const feature = `<article class="feature"><span class="sk sk-ico"></span><div>${skLine("48%")}${skLine("92%")}</div></article>`;
+    const card = `<article class="card">${skLine("28%")}${skLine("46%")}${skLine("84%")}</article>`;
+    return `<section class="hero"><div>${skLine("34%")}${skLine("92%")}${skLine("78%")}${skLine("62%")}<div class="sk-row">${skLine("120px")}${skLine("108px")}</div></div><div class="sk sk-phone"></div></section>
+      <section class="section"><div class="features">${feature.repeat(6)}</div></section>
+      <section class="section"><div class="grid-3">${card.repeat(3)}</div></section>`;
   }
   function applyLive(value) {
     const q = value.trim().toLowerCase();
@@ -869,6 +888,7 @@
     }
     if (act === "noop") return;
     if (act === "sambung-ulang") {
+      if (GASPOL.urlSalah) throw new Error("Tautan data belum benar. Periksa config.js.");
       await GASPOL.connect();
       gagalSambung = "";
       render();
@@ -1109,13 +1129,15 @@
     if (busy) return;
     busy = true;
     const lokal = ["tema", "noop", "close-modal", "salin-bank", "salin-wallet", "salin-kelas", "cetak", "report", "status", "jenis", "checkout-mundur", "modul", "buka-setujui", "buka-tolak", "checkout-1"];
-    if (GASPOL.remote && lokal.indexOf(act) < 0) toast("Menghubungi spreadsheet...");
+    const jauh = GASPOL.remote && lokal.indexOf(act) < 0;
+    if (jauh) document.documentElement.classList.add("is-loading");
     try {
       await run(act, data, el && el.tagName === "FORM" ? el : (el ? el.closest("form") : null));
     } catch (err) {
       toast(err.message || "Terjadi kendala.", "bad");
     } finally {
       busy = false;
+      if (jauh) document.documentElement.classList.remove("is-loading");
     }
   }
   function onClick(event) {
@@ -1155,20 +1177,28 @@
     window.addEventListener("storage", (event) => {
       if (event.key !== "gaspol_db" && event.key !== "gaspol_token") return;
       const done = GASPOL.reload();
-      if (done && typeof done.then === "function") done.then(() => render()).catch((err) => toast(err.message || "Spreadsheet tidak menjawab.", "bad"));
+      if (done && typeof done.then === "function") done.then(() => render()).catch(() => toast("Gagal memuat. Coba lagi.", "bad"));
       else render();
     });
     if (GASPOL.urlSalah) {
-      gagalSambung = "URL Web App harus diawali https://script.google.com/macros/s/ dan diakhiri /exec.";
+      gagalSambung = "1";
+      toast("Tautan data belum benar. Periksa config.js.", "bad");
       render();
       return;
     }
     if (GASPOL.remote) {
-      document.getElementById("view").innerHTML = `<section class="empty"><h1>Menyambungkan spreadsheet</h1><p>Mengambil katalog dari Google Sheets.</p></section>`;
+      const punya = GASPOL.punyaCache();
+      if (!punya) document.getElementById("view").innerHTML = skeletonPage();
+      else render();
+      document.documentElement.classList.add("is-loading");
       try {
         await GASPOL.connect();
+        gagalSambung = "";
       } catch (err) {
-        gagalSambung = err.message || "Spreadsheet tidak menjawab.";
+        if (!punya) gagalSambung = "1";
+        toast("Gagal memuat. Coba lagi.", "bad");
+      } finally {
+        document.documentElement.classList.remove("is-loading");
       }
     }
     const redirected = consumeClassQuery();

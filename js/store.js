@@ -3,6 +3,7 @@
   const DB_KEY = "gaspol_db";
   const TOKEN_KEY = "gaspol_token";
   const GUARD_KEY = "gaspol_voucher_guard";
+  const SNAP_KEY = "gaspol_snap";
   const VERSION = 1;
 
   const ROLES = {
@@ -13,6 +14,9 @@
   };
 
   let db = null;
+  let urutanKirim = 0;
+  let urutanSelesai = 0;
+  let cacheAwal = false;
 
   function alamatJembatan() {
     if (typeof window === "undefined" || !window.GASPOL_URL) return "";
@@ -67,8 +71,45 @@
     return next;
   }
 
+  function pendekData(nilai) {
+    return typeof nilai === "string" && nilai.indexOf("data:") === 0 && nilai.length > 8000 ? "" : nilai;
+  }
+  function simpanSnap() {
+    try {
+      const next = JSON.parse(JSON.stringify(db));
+      next.produk.forEach((item) => { item.gambar_url = pendekData(item.gambar_url); });
+      next.kelas.forEach((item) => { item.gambar_url = pendekData(item.gambar_url); });
+      next.modul.forEach((item) => { item.url_atau_file_id = pendekData(item.url_atau_file_id); });
+      next.pesanan.forEach((item) => { item.bukti_file_id = pendekData(item.bukti_file_id); });
+      if (next.pengaturan) next.pengaturan.gambar_QRIS = pendekData(next.pengaturan.gambar_QRIS);
+      localStorage.setItem(SNAP_KEY, JSON.stringify(next));
+    } catch (err) {}
+  }
+  function tampilCache() {
+    try {
+      const raw = localStorage.getItem(SNAP_KEY);
+      if (!raw) return false;
+      db = rapikanCuplikan(JSON.parse(raw));
+      if (!localStorage.getItem(TOKEN_KEY)) {
+        db.pesanan = [];
+        db.peserta = [];
+        db.voucher = [];
+        db.log = [];
+        db.sesi = [];
+        db.reset = [];
+        db.modul.forEach((item) => { item.url_atau_file_id = ""; });
+        db.pengguna = db.pengguna.map((item) => ({
+          id_pengguna: item.id_pengguna, nama: item.nama, email: "", whatsapp: "", peran: "", status: "aktif"
+        }));
+      }
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
   function kirim(aksi, data) {
     const tokenNow = localStorage.getItem(TOKEN_KEY) || "";
+    const saya = ++urutanKirim;
     return fetch(REMOTE_URL, {
       method: "POST",
       cache: "no-store",
@@ -79,12 +120,17 @@
       try {
         payload = JSON.parse(text.replace(/^\)]\}',?\s*/, ""));
       } catch (err) {
-        throw new Error("Spreadsheet tidak menjawab. Periksa URL Web App yang diakhiri /exec, lalu pasang ulang versi terbaru.");
+        throw new Error("Data tidak menjawab. Periksa tautan di config.js, lalu muat ulang.");
       }
       if (!payload.ok) throw new Error(payload.pesan || "Permintaan gagal.");
+      if (saya < urutanSelesai) return payload.hasil;
+      urutanSelesai = saya;
       if (payload.hapusToken) localStorage.removeItem(TOKEN_KEY);
       else if (payload.token) localStorage.setItem(TOKEN_KEY, payload.token);
-      if (payload.cuplikan) db = rapikanCuplikan(payload.cuplikan);
+      if (payload.cuplikan) {
+        db = rapikanCuplikan(payload.cuplikan);
+        simpanSnap();
+      }
       return payload.hasil;
     });
   }
@@ -321,6 +367,7 @@
   function init() {
     if (REMOTE) {
       db = dbKosong();
+      cacheAwal = tampilCache();
       return;
     }
     db = load();
@@ -1077,6 +1124,7 @@
       reload();
     },
     connect: () => REMOTE ? kirim("baca", {}) : Promise.resolve(true),
+    punyaCache: () => cacheAwal,
     remote: REMOTE,
     urlSalah: URL_SALAH,
     user: () => publicUser(currentUser()),
