@@ -9,11 +9,14 @@
   ];
   const TIPE = {
     youtube: "Video YouTube",
+    video: "Video",
     video_drive: "Video Drive",
-    pdf: "Tulisan / PDF",
+    dokumen: "Dokumen",
+    pdf: "Tulisan",
     gambar: "Gambar",
     tautan: "Tautan"
   };
+  const LOCK = svg('<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>');
   const AKSI = {
     daftar: "Daftar akun",
     masuk: "Masuk",
@@ -52,6 +55,7 @@
   let busy = false;
   let toastTimer = 0;
   let draft = { produk: "", step: 1, metode: "bank", catatan: "" };
+  let gagalSambung = "";
 
   function svg(body) {
     return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
@@ -219,8 +223,23 @@
     toast("Tersalin.");
   }
 
+  function readBerkas(file) {
+    const nama = String(file.name || "berkas");
+    const dokumen = /\.(pdf|pptx?|ppsx?|docx?|xlsx?|zip|txt|csv)$/i.test(nama) || file.type === "application/pdf";
+    const video = /^video\//.test(file.type);
+    if (!dokumen && !video) return Promise.reject(new Error("Unggah PDF, PPTX, dokumen lain, atau video. Berkas besar ditempel sebagai tautan https."));
+    if (file.size > 1400000) return Promise.reject(new Error("Berkas lebih dari 1,4 MB. Tempel tautan https dari Drive, GitHub, atau YouTube."));
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ data: String(reader.result || ""), nama });
+      reader.onerror = () => reject(new Error("Berkas tidak bisa dibaca."));
+      reader.readAsDataURL(file);
+    });
+  }
   function productCard(product, index) {
     const img = safeImg(product.gambar_url);
+    const demo = safeHttp(product.tautan_demo);
+    const berkas = safeHttp(product.tautan_aplikasi);
     return `<article class="pcard">
       <div class="thumb" style="background:${GRADS[index % GRADS.length]}">${img ? `<img alt="" src="${esc(img)}">` : I.box}</div>
       <div class="pbody">
@@ -228,27 +247,40 @@
         <p>${esc(product.deskripsi)}</p>
         <div class="price"><span>Mulai dari</span><strong>${rp(product.harga_mulai)}</strong></div>
         <div class="row-actions">
+          ${demo ? `<a class="btn btn-ghost" href="${esc(demo)}" target="_blank" rel="noopener">Demo</a>` : ""}
+          ${berkas ? `<a class="btn btn-ghost" href="${esc(berkas)}" target="_blank" rel="noopener">Lihat aplikasi</a>` : ""}
           <a class="btn btn-primary" href="#/checkout?produk=${encodeURIComponent(product.id_produk)}">Beli</a>
           ${product.bisa_custom ? `<a class="btn btn-ghost" href="#/custom?produk=${encodeURIComponent(product.id_produk)}">Request Custom</a>` : ""}
         </div>
       </div>
     </article>`;
   }
+  function classCover(kelas, wide) {
+    const owned = GASPOL.canAccess(kelas.id_kelas);
+    const img = safeImg(kelas.gambar_url);
+    return `<div class="ccover ${wide ? "wide" : ""} ${owned ? "terbuka" : "terkunci"}">
+      ${img ? `<img alt="" src="${esc(img)}">` : `<span class="cempty"></span>`}
+      ${owned ? `<span class="own-pill">Dimiliki</span>` : `<span class="lock-badge" aria-label="Terkunci">${LOCK}</span>`}
+    </div>`;
+  }
   function classCard(kelas) {
     const link = safeHttp(kelas.link_lynk) || "https://lynk.id/";
+    const owned = GASPOL.canAccess(kelas.id_kelas);
     return `<article class="ccard">
-      <p class="kicker">Kelas</p>
-      <h2>${esc(kelas.judul)}</h2>
-      <p>${esc(kelas.deskripsi)}</p>
-      <div class="price"><span>Harga</span><strong>${rp(kelas.harga)}</strong></div>
-      <div class="row-actions">
-        <a class="btn btn-primary" href="${esc(link)}" target="_blank" rel="noopener">Beli di Lynk.id</a>
-        <a class="btn btn-ghost" href="#/voucher?kelas=${encodeURIComponent(kelas.id_kelas)}">Punya Kode</a>
+      <a href="#/kelas/${encodeURIComponent(kelas.id_kelas)}">${classCover(kelas)}</a>
+      <div class="cbody">
+        <p class="kicker">Kelas</p>
+        <h2>${esc(kelas.judul)}</h2>
+        <p>${esc(kelas.deskripsi)}</p>
+        <div class="price"><span>Harga</span><strong>${rp(kelas.harga)}</strong></div>
+        <div class="row-actions">
+          ${owned ? `<a class="btn btn-primary" href="#/belajar/${encodeURIComponent(kelas.id_kelas)}">Buka materi</a>` : `<a class="btn btn-primary" href="${esc(link)}" target="_blank" rel="noopener">Beli di Lynk.id</a><a class="btn btn-ghost" href="#/voucher?kelas=${encodeURIComponent(kelas.id_kelas)}">Punya Kode</a>`}
+        </div>
       </div>
     </article>`;
   }
   function mailBox(order) {
-    return `<section class="note"><h2>Pratinjau email</h2><p class="help">Pada situs ini surat ditampilkan di halaman. Saat dipasang di Google Apps Script, surat yang sama terkirim lewat Gmail, dan bukti PDF dilampirkan ketika pesanan disetujui.</p><pre class="mail">${esc(GASPOL.emailText(order))}</pre></section>`;
+    return `<section class="note"><h2>Pratinjau email</h2><p class="help">${GASPOL.remote ? "Surat yang sama dikirim ke email pembeli lewat Gmail." : "Pada situs ini surat ditampilkan di halaman. Setelah spreadsheet tersambung, surat yang sama terkirim lewat Gmail."}</p><pre class="mail">${esc(GASPOL.emailText(order))}</pre></section>`;
   }
   function orderBlock(order, staff) {
     const proof = safeImg(order.bukti_file_id);
@@ -361,7 +393,7 @@
     const mods = GASPOL.modulesOf(id);
     const open = GASPOL.canAccess(id);
     const link = safeHttp(kelas.link_lynk) || "https://lynk.id/";
-    return `<header class="page-head"><p class="kicker">Kelas</p><h1>${esc(kelas.judul)}</h1><p class="lede">${esc(kelas.deskripsi)}</p><p class="price"><span>Harga</span><strong>${rp(kelas.harga)}</strong></p></header>
+    return `${classCover(kelas, true)}<header class="page-head"><p class="kicker">Kelas</p><h1>${esc(kelas.judul)}</h1><p class="lede">${esc(kelas.deskripsi)}</p><p class="price"><span>Harga</span><strong>${rp(kelas.harga)}</strong></p></header>
       <div class="row-actions">
         <a class="btn btn-primary" href="${esc(link)}" target="_blank" rel="noopener">Beli di Lynk.id</a>
         <a class="btn btn-ghost" href="#/voucher?kelas=${encodeURIComponent(id)}">Punya Kode</a>
@@ -454,9 +486,9 @@
     } else if (mode === "daftar") {
       form = `<form class="form" data-act="daftar">${field("Nama", '<input name="nama" required maxlength="80" autocomplete="name">')}${field("Email", '<input name="email" type="email" required autocomplete="email">')}${field("WhatsApp", '<input name="whatsapp" required inputmode="tel" placeholder="62812...">')}${field("Kata sandi", '<input name="password" type="password" required minlength="8" autocomplete="new-password">', "Minimal 8 karakter.")}${field("Ulangi kata sandi", '<input name="confirm" type="password" required minlength="8">')}<button class="btn btn-primary" type="submit">Daftar</button></form><p>Sudah punya akun? <a href="#/masuk">Masuk</a></p>`;
     } else {
-      form = `<form class="form" data-act="minta-pulih">${field("Email", '<input name="email" type="email" required>')}<button class="btn btn-primary" type="submit">Buat kode</button></form><p class="help">Karena situs ini tidak mengirim email, kode pulihan muncul di layar. Pada Google Apps Script, kode itu dikirim ke email.</p>`;
+      form = `<form class="form" data-act="minta-pulih">${field("Email", '<input name="email" type="email" required>')}<button class="btn btn-primary" type="submit">Buat kode</button></form><p class="help">${GASPOL.remote ? "Kode pulihan dikirim ke email." : "Karena situs ini tidak mengirim email, kode pulihan muncul di layar."}</p>`;
     }
-    const demo = mode === "masuk" ? `<div class="demo-box"><strong>Akun percobaan</strong><p>Admin: atang@gaspol.id / GaspolAdmin1<br>Tim: tim@gaspol.id / GaspolTim1<br>Peserta: peserta@gaspol.id / Peserta123</p><button type="button" class="btn btn-ghost btn-small" data-act="reset-demo">Kembalikan data contoh</button></div>` : "";
+    const demo = mode === "masuk" ? `<div class="demo-box"><strong>Akun percobaan</strong><p>Admin: atang@gaspol.id / GaspolAdmin1<br>Tim: tim@gaspol.id / GaspolTim1<br>Peserta: peserta@gaspol.id / Peserta123</p>${GASPOL.remote ? `<p class="help">Akun ini ada di spreadsheet.</p>` : `<button type="button" class="btn btn-ghost btn-small" data-act="reset-demo">Kembalikan data contoh</button>`}</div>` : "";
     return `<section class="card narrow"><h1>${titles[mode]}</h1>${form}${demo}</section>`;
   }
 
@@ -525,6 +557,25 @@
       if (!src) return `<div class="note">Video Drive belum dipasang. Admin menempelkan tautan berbagi di panel kelas. Video besar diunggah langsung ke Drive, bukan lewat formulir ini.</div>`;
       return `<div class="video-frame"><iframe src="${src}" title="${esc(mod.judul)}" allowfullscreen></iframe></div>`;
     }
+    if (mod.tipe === "dokumen" || (mod.tipe === "pdf" && url.startsWith("data:") && !url.startsWith("teks:"))) {
+      const name = mod.nama_berkas || "materi";
+      if (url.startsWith("data:")) return `<a class="btn btn-primary" href="${esc(url)}" download="${esc(name)}">Unduh ${esc(name)}</a>`;
+      const link = safeHttp(url);
+      if (!link) return `<div class="note">Dokumen belum tersedia.</div>`;
+      return `<a class="btn btn-primary" href="${esc(link)}" target="_blank" rel="noopener">Unduh dokumen</a>`;
+    }
+    if (mod.tipe === "video") {
+      if (url.startsWith("data:video/")) return `<video controls src="${esc(url)}"></video>`;
+      const fileVideo = safeHttp(url);
+      if (fileVideo && /\.(mp4|webm)(\?|$)/i.test(fileVideo)) return `<video controls src="${esc(fileVideo)}"></video>`;
+      const id = youtubeId(url);
+      if (id) return `<div class="video-frame"><iframe src="https://www.youtube-nocookie.com/embed/${id}" title="${esc(mod.judul)}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe></div>`;
+      const src = drivePreview(url);
+      if (src) return `<div class="video-frame"><iframe src="${src}" title="${esc(mod.judul)}" allowfullscreen></iframe></div>`;
+      const link = safeHttp(url);
+      if (!link) return `<div class="note">Video belum tersedia.</div>`;
+      return `<a class="btn btn-primary" href="${esc(link)}" target="_blank" rel="noopener">Buka video</a>`;
+    }
     if (mod.tipe === "pdf") {
       if (url.startsWith("teks:")) return `<div class="prose">${esc(url.slice(5))}</div><button type="button" class="btn btn-ghost" data-act="unduh-modul" data-id="${esc(mod.id_modul)}" data-kelas="${esc(mod.id_kelas)}">Unduh materi</button>`;
       const link = safeHttp(url);
@@ -592,7 +643,7 @@
     return `<div class="split"><h1>Produk</h1></div>${form}<div class="stack">${products.map((product) => `<article class="item"><div class="split"><div><h2>${esc(product.nama)}</h2><p class="help">${rp(product.harga_mulai)} · ${product.status} · ${product.bisa_custom ? "bisa custom" : "tetap"}</p></div><span class="badge b-info">${esc(product.id_produk)}</span></div><div class="row-actions"><a class="btn btn-ghost btn-small" href="#/admin/produk?id=${encodeURIComponent(product.id_produk)}">Ubah</a><button type="button" class="btn btn-ghost btn-small" data-act="urut-produk" data-id="${esc(product.id_produk)}" data-arah="naik">Naik</button><button type="button" class="btn btn-ghost btn-small" data-act="urut-produk" data-id="${esc(product.id_produk)}" data-arah="turun">Turun</button><button type="button" class="btn btn-danger btn-small" data-act="hapus-produk" data-id="${esc(product.id_produk)}">Hapus</button></div></article>`).join("")}</div>`;
   }
   function productForm(product) {
-    const p = product || { id_produk: "", nama: "", deskripsi: "", harga_mulai: 50000, bisa_custom: true, status: "aktif", gambar_url: "" };
+    const p = product || { id_produk: "", nama: "", deskripsi: "", harga_mulai: 50000, bisa_custom: true, status: "aktif", gambar_url: "", tautan_demo: "", tautan_aplikasi: "" };
     return `<form class="card form" data-act="simpan-produk"><h2>${product ? "Ubah produk" : "Produk baru"}</h2>
       <input type="hidden" name="id_produk" value="${esc(p.id_produk)}">
       <input type="hidden" name="gambar_url" value="${esc(p.gambar_url || "")}">
@@ -601,8 +652,10 @@
       ${field("Harga mulai", `<input name="harga_mulai" required inputmode="numeric" value="${esc(p.harga_mulai)}">`)}
       ${field("Bisa custom", `<select name="bisa_custom"><option value="ya" ${p.bisa_custom ? "selected" : ""}>Ya</option><option value="tidak" ${p.bisa_custom ? "" : "selected"}>Tidak</option></select>`)}
       ${field("Status", `<select name="status"><option value="aktif" ${p.status !== "arsip" ? "selected" : ""}>Aktif</option><option value="arsip" ${p.status === "arsip" ? "selected" : ""}>Arsip</option></select>`)}
-      ${field("Gambar", '<input type="file" accept="image/*">', "Kosongkan jika gambar tetap.")}
+      ${field("Gambar kartu", '<input type="file" accept="image/*">', "Gambar ini tampil di kartu katalog.")}
       ${product && p.gambar_url ? `<label class="check"><input type="checkbox" name="clear_gambar" value="ya"> Hapus gambar</label>` : ""}
+      ${field("Tautan demo", `<input name="tautan_demo" value="${esc(p.tautan_demo || "")}" placeholder="https://">`, "Kalau diisi, kartu menampilkan tombol Demo.")}
+      ${field("Tautan aplikasi", `<input name="tautan_aplikasi" value="${esc(p.tautan_aplikasi || "")}" placeholder="https://github.com/...">`, "Tautan GitHub atau berkas yang boleh dibuka calon pembeli.")}
       <button class="btn btn-primary" type="submit">Simpan produk</button></form>`;
   }
   function adminKelas(query) {
@@ -616,28 +669,33 @@
     return `<h1>${current ? esc(current.judul) : "Kelas baru"}</h1><p><a href="#/admin/kelas">Semua kelas</a></p>${form}${current ? `<section class="section"><h2>Materi</h2><div class="stack">${modules}</div>${moduleForm(current.id_kelas, null)}</section>` : ""}`;
   }
   function classForm(kelas) {
-    const c = kelas || { id_kelas: "", judul: "", deskripsi: "", harga: 149000, link_lynk: "https://lynk.id/", status: "aktif" };
+    const c = kelas || { id_kelas: "", judul: "", deskripsi: "", harga: 149000, link_lynk: "https://lynk.id/", status: "aktif", gambar_url: "" };
     return `<form class="card form" data-act="simpan-kelas"><h2>${kelas ? "Data kelas" : "Kelas baru"}</h2>
       <input type="hidden" name="id_kelas" value="${esc(c.id_kelas)}">
+      <input type="hidden" name="gambar_url" value="${esc(c.gambar_url || "")}">
       ${field("Judul", `<input name="judul" required maxlength="100" value="${esc(c.judul)}">`)}
       ${field("Deskripsi", `<textarea name="deskripsi" required maxlength="600">${esc(c.deskripsi)}</textarea>`)}
       ${field("Harga", `<input name="harga" required inputmode="numeric" value="${esc(c.harga)}">`)}
       ${field("Tautan Lynk.id", `<input name="link_lynk" required value="${esc(c.link_lynk)}">`)}
       ${field("Status", `<select name="status"><option value="aktif" ${c.status !== "arsip" ? "selected" : ""}>Aktif</option><option value="arsip" ${c.status === "arsip" ? "selected" : ""}>Arsip</option></select>`)}
+      ${field("Gambar sampul", '<input name="sampul" type="file" accept="image/*">', "Tanpa gambar, kartu yang belum dimiliki tampil abu-abu dengan gembok.")}
+      ${c.gambar_url ? `<img alt="" src="${esc(safeImg(c.gambar_url))}"><label class="check"><input type="checkbox" name="clear_gambar" value="ya"> Hapus gambar</label>` : ""}
       <div class="row-actions"><button class="btn btn-primary" type="submit">Simpan kelas</button>${kelas ? `<button type="button" class="btn btn-danger" data-act="hapus-kelas" data-id="${esc(c.id_kelas)}">Hapus kelas</button>` : ""}</div></form>`;
   }
   function moduleForm(classId, mod) {
-    const m = mod || { id_modul: "", judul: "", tipe: "pdf", url_atau_file_id: "" };
-    const teks = m.url_atau_file_id.startsWith("teks:") ? m.url_atau_file_id.slice(5) : "";
-    const tautan = m.url_atau_file_id.startsWith("teks:") || m.url_atau_file_id.startsWith("data:image/") ? "" : m.url_atau_file_id;
+    const m = mod || { id_modul: "", judul: "", tipe: "dokumen", url_atau_file_id: "", nama_berkas: "" };
+    const isi = m.url_atau_file_id || "";
+    const teks = isi.startsWith("teks:") ? isi.slice(5) : "";
+    const tautan = isi.startsWith("teks:") || isi.startsWith("data:") ? "" : isi;
+    const lama = isi.startsWith("data:") ? isi : "";
     const options = Object.keys(TIPE).map((key) => `<option value="${key}" ${m.tipe === key ? "selected" : ""}>${TIPE[key]}</option>`).join("");
     return `<form class="form" data-act="simpan-modul"><h3>${mod ? "Ubah materi" : "Tambah materi"}</h3>
-      <input type="hidden" name="id_modul" value="${esc(m.id_modul)}"><input type="hidden" name="id_kelas" value="${esc(classId)}"><input type="hidden" name="gambar_lama" value="${esc(m.tipe === "gambar" ? m.url_atau_file_id : "")}">
+      <input type="hidden" name="id_modul" value="${esc(m.id_modul)}"><input type="hidden" name="id_kelas" value="${esc(classId)}"><input type="hidden" name="gambar_lama" value="${esc(m.tipe === "gambar" ? isi : "")}"><input type="hidden" name="berkas_lama" value="${esc(lama)}"><input type="hidden" name="nama_berkas" value="${esc(m.nama_berkas || "")}">
       ${field("Judul", `<input name="judul" required maxlength="120" value="${esc(m.judul)}">`)}
       ${field("Tipe", `<select name="tipe">${options}</select>`)}
-      ${field("Tautan https", `<input name="tautan" value="${esc(tautan)}" placeholder="YouTube, Drive, PDF, atau tautan">`, "Kosongkan jika materi berupa tulisan atau gambar unggahan.")}
-      ${field("Tulisan materi", `<textarea name="teks" maxlength="5000">${esc(teks)}</textarea>`, "Dipakai jika tipe tulisan / PDF dan bukan tautan.")}
-      ${field("Gambar unggahan", '<input type="file" accept="image/*">')}
+      ${field("Tautan https", `<input name="tautan" value="${esc(tautan)}" placeholder="YouTube, Drive, GitHub, atau tautan lain">`, "Untuk video besar, tempel tautan. Kosongkan jika Anda mengunggah berkas.")}
+      ${field("Tulisan materi", `<textarea name="teks" maxlength="5000">${esc(teks)}</textarea>`, "Dipakai untuk tipe tulisan.")}
+      ${field("Unggah berkas", '<input name="berkas" type="file" accept=".pdf,.ppt,.pptx,.pps,.ppsx,.doc,.docx,.xls,.xlsx,.zip,.txt,.csv,video/*,image/*">', "PDF, PPTX, dokumen lain, gambar, atau video sampai 1,4 MB. Peserta bisa mengunduh atau menonton setelah kelas terbuka.")}
       <button class="btn btn-primary btn-small" type="submit">Simpan materi</button></form>`;
   }
   function adminVoucher() {
@@ -684,7 +742,7 @@
       ${s.gambar_QRIS ? `<img class="qris" alt="QRIS saat ini" src="${esc(safeImg(s.gambar_QRIS))}"><label class="check"><input type="checkbox" name="clear_qris" value="ya"> Hapus QRIS</label>` : ""}
       <button class="btn btn-primary" type="submit">Simpan pengaturan</button>
     </form>
-    <section class="card"><h2>Cadangan</h2><p class="help">Unduh salinan data peramban ini, atau pasang kembali berkas yang sama.</p><div class="row-actions"><button type="button" class="btn btn-ghost" data-act="cadangan">Unduh cadangan</button><button type="button" class="btn btn-ghost" data-act="reset-demo">Kembalikan data contoh</button></div>
+    <section class="card"><h2>Cadangan</h2><p class="help">${GASPOL.remote ? "Unduh salinan spreadsheet, atau pasang kembali berkas cadangan. Semua pengunjung memakai data yang sama." : "Unduh salinan data peramban ini, atau pasang kembali berkas yang sama."}</p><div class="row-actions"><button type="button" class="btn btn-ghost" data-act="cadangan">Unduh cadangan</button>${GASPOL.remote ? "" : `<button type="button" class="btn btn-ghost" data-act="reset-demo">Kembalikan data contoh</button>`}</div>
       <form class="form" data-act="pulihkan-cadangan">${field("Pasang cadangan", '<input type="file" accept="application/json,.json" required>')}<button class="btn btn-danger" type="submit">Ganti data dengan cadangan</button></form>
     </section>`;
   }
@@ -746,6 +804,12 @@
         holder.dataset.ready = "1";
       }
     });
+    const note = document.getElementById("data-note");
+    if (note) {
+      note.textContent = GASPOL.remote
+        ? "Pesanan, akun, dan kelas disimpan di spreadsheet Google yang sama untuk semua pengunjung."
+        : "Data akun, pesanan, dan kelas pada situs ini tersimpan di peramban Anda. Rekening pembayaran masih contoh sampai diganti admin utama.";
+    }
   }
   function render(opts) {
     const path = (location.hash || "#/").split("?")[0];
@@ -756,6 +820,11 @@
     const y = window.scrollY;
     updateChrome();
     const view = document.getElementById("view");
+    if (gagalSambung) {
+      view.innerHTML = `<section class="empty"><h1>Spreadsheet belum tersambung</h1><p>${esc(gagalSambung)}</p><button type="button" class="btn btn-primary" data-act="sambung-ulang">Coba lagi</button></section>`;
+      document.title = pageTitle;
+      return;
+    }
     try {
       view.innerHTML = viewFor();
     } catch (err) {
@@ -785,6 +854,10 @@
     go(staff ? "#/admin" : "#/akun");
   }
 
+  function sink(value) {
+    if (value && typeof value.then === "function") return value;
+    return Promise.resolve(value);
+  }
   async function run(act, data, form) {
     if (act === "tema") {
       const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
@@ -795,11 +868,17 @@
       return;
     }
     if (act === "noop") return;
+    if (act === "sambung-ulang") {
+      await GASPOL.connect();
+      gagalSambung = "";
+      render();
+      return;
+    }
     if (act === "close-modal") { closeModal(); return; }
-    if (act === "keluar") { GASPOL.logout(); toast("Anda sudah keluar."); go("#/"); return; }
+    if (act === "keluar") { await sink(GASPOL.logout()); toast("Anda sudah keluar."); go("#/"); return; }
     if (act === "reset-demo") {
       if (!confirm("Kembalikan katalog, akun, dan pesanan ke data contoh? Perubahan di peramban ini akan hilang.")) return;
-      GASPOL.resetDemo();
+      await sink(GASPOL.resetDemo());
       toast("Data contoh dipasang kembali.");
       go("#/");
       return;
@@ -818,7 +897,7 @@
       return;
     }
     if (act === "lihat-bukti") {
-      const order = GASPOL.visibleOrder(data.id);
+      const order = await sink(GASPOL.visibleOrder(data.id));
       const src = safeImg(order.bukti_file_id);
       if (!src) throw new Error("Belum ada bukti transfer.");
       openModal(`<h2>Bukti transfer</h2><img class="proof" alt="Bukti transfer" src="${esc(src)}"><button type="button" class="btn btn-ghost" data-act="close-modal">Tutup</button>`);
@@ -833,39 +912,42 @@
       return;
     }
     if (act === "setujui") {
-      const order = GASPOL.approve(data.id, data.catatan || "");
+      const order = await sink(GASPOL.approve(data.id, data.catatan || ""));
       closeModal();
       render({ keepScroll: true });
       openModal(`<h2>Pesanan disetujui</h2>${mailBox(order)}<div class="row-actions"><a class="btn btn-primary" href="#/bukti/${encodeURIComponent(order.id_pesanan)}">Buka bukti</a><button type="button" class="btn btn-ghost" data-act="close-modal">Tutup</button></div>`);
       return;
     }
     if (act === "tolak") {
-      const order = GASPOL.reject(data.id, data.alasan || "");
+      const order = await sink(GASPOL.reject(data.id, data.alasan || ""));
       closeModal();
       render({ keepScroll: true });
       openModal(`<h2>Pesanan ditolak</h2>${mailBox(order)}<button type="button" class="btn btn-ghost" data-act="close-modal">Tutup</button>`);
       return;
     }
-    if (act === "masuk") { GASPOL.login(data.email, data.password); toast("Selamat datang."); afterAuth(); return; }
-    if (act === "daftar") { GASPOL.register(data); toast("Akun dibuat."); afterAuth(); return; }
+    if (act === "masuk") { await sink(GASPOL.login(data.email, data.password)); toast("Selamat datang."); afterAuth(); return; }
+    if (act === "daftar") { await sink(GASPOL.register(data)); toast("Akun dibuat."); afterAuth(); return; }
     if (act === "minta-pulih") {
-      const result = GASPOL.requestReset(data.email);
-      openModal(`<h2>Kode pulihan</h2><p>Masukkan kode ini di formulir berikutnya. Di versi Google Apps Script, kode dikirim ke email.</p><p class="code-pill">${esc(result.demoCode)}</p><form class="form" data-act="konfirmasi-pulih"><input type="hidden" name="email" value="${esc(result.email)}">${field("Kode", `<input name="kode" required value="${esc(result.demoCode)}">`)}${field("Kata sandi baru", '<input name="password" type="password" required minlength="8">')}<button class="btn btn-primary" type="submit">Simpan kata sandi</button></form>`);
+      const result = await sink(GASPOL.requestReset(data.email));
+      const petunjuk = result.demoCode
+        ? `<p>Masukkan kode ini di formulir berikutnya.</p><p class="code-pill">${esc(result.demoCode)}</p>`
+        : `<p>Kode pulihan dikirim ke ${esc(result.email)}. Berlaku 15 menit.</p>`;
+      openModal(`<h2>Kode pulihan</h2>${petunjuk}<form class="form" data-act="konfirmasi-pulih"><input type="hidden" name="email" value="${esc(result.email)}">${field("Kode", `<input name="kode" required value="${esc(result.demoCode || "")}">`)}${field("Kata sandi baru", '<input name="password" type="password" required minlength="8">')}<button class="btn btn-primary" type="submit">Simpan kata sandi</button></form>`);
       return;
     }
     if (act === "konfirmasi-pulih") {
-      GASPOL.confirmReset(data.email, data.kode, data.password);
+      await sink(GASPOL.confirmReset(data.email, data.kode, data.password));
       closeModal();
       toast("Kata sandi diperbarui. Silakan masuk.");
       go("#/masuk");
       return;
     }
-    if (act === "sandi") { GASPOL.changePassword(data.lama, data.baru); toast("Kata sandi diperbarui."); render({ keepScroll: true }); return; }
+    if (act === "sandi") { await sink(GASPOL.changePassword(data.lama, data.baru)); toast("Kata sandi diperbarui."); render({ keepScroll: true }); return; }
     if (act === "checkout-1") { draft.catatan = data.catatan || ""; draft.step = 2; render(); return; }
     if (act === "checkout-2") {
       draft.metode = data.metode || draft.metode;
       if (draft.metode === "Lynk.id") {
-        const order = GASPOL.createOrder({ id_produk: draft.produk, metode: "Lynk.id", catatan: draft.catatan });
+        const order = await sink(GASPOL.createOrder({ id_produk: draft.produk, metode: "Lynk.id", catatan: draft.catatan }));
         const link = safeHttp(GASPOL.settings().link_lynk);
         draft = { produk: "", step: 1, metode: "bank", catatan: "" };
         if (link) window.open(link, "_blank", "noopener");
@@ -880,8 +962,8 @@
       const file = form.querySelector('input[type="file"]')?.files?.[0];
       if (!file) throw new Error("Unggah bukti transfer.");
       const image = await readImage(file);
-      const order = GASPOL.createOrder({ id_produk: draft.produk, metode: draft.metode, catatan: draft.catatan });
-      GASPOL.attachProof(order.id_pesanan, image);
+      const order = await sink(GASPOL.createOrder({ id_produk: draft.produk, metode: draft.metode, catatan: draft.catatan }));
+      await sink(GASPOL.attachProof(order.id_pesanan, image));
       draft = { produk: "", step: 1, metode: "bank", catatan: "" };
       go("#/selesai?id=" + encodeURIComponent(order.id_pesanan));
       return;
@@ -889,19 +971,19 @@
     if (act === "unggah-bukti") {
       const file = form.querySelector('input[type="file"]')?.files?.[0];
       if (!file) throw new Error("Pilih gambar bukti.");
-      GASPOL.attachProof(data.id, await readImage(file));
+      await sink(GASPOL.attachProof(data.id, await readImage(file)));
       toast("Bukti terkirim. Admin akan memeriksanya.");
       render({ keepScroll: true });
       return;
     }
     if (act === "custom") {
-      const order = GASPOL.createCustom(data);
+      const order = await sink(GASPOL.createCustom(data));
       toast("Permintaan terkirim.");
       go("#/selesai?id=" + encodeURIComponent(order.id_pesanan));
       return;
     }
     if (act === "tukar") {
-      const kelas = GASPOL.redeem(data.kode);
+      const kelas = await sink(GASPOL.redeem(data.kode));
       toast("Kode berhasil. Kelas dibuka.");
       go("#/belajar/" + encodeURIComponent(kelas.id_kelas));
       return;
@@ -916,21 +998,24 @@
     if (act === "simpan-produk") {
       const file = form.querySelector('input[type="file"]')?.files?.[0];
       if (file) data.gambar_url = await readImage(file);
-      const row = GASPOL.saveProduct(data);
+      const row = await sink(GASPOL.saveProduct(data));
       toast("Produk disimpan.");
       go("#/admin/produk?id=" + encodeURIComponent(row.id_produk));
       return;
     }
-    if (act === "urut-produk") { GASPOL.moveProduct(data.id, data.arah); render({ keepScroll: true }); return; }
+    if (act === "urut-produk") { await sink(GASPOL.moveProduct(data.id, data.arah)); render({ keepScroll: true }); return; }
     if (act === "hapus-produk") {
       if (!confirm("Hapus produk ini dari katalog?")) return;
-      GASPOL.deleteProduct(data.id);
+      await sink(GASPOL.deleteProduct(data.id));
       toast("Produk dihapus.");
       go("#/admin/produk");
       return;
     }
     if (act === "simpan-kelas") {
-      const kelas = GASPOL.saveClass(data);
+      const file = form.querySelector('input[name="sampul"]')?.files?.[0];
+      if (file) data.gambar_url = await readImage(file);
+      delete data.sampul;
+      const kelas = await sink(GASPOL.saveClass(data));
       toast("Kelas disimpan.");
       go("#/admin/kelas?id=" + encodeURIComponent(kelas.id_kelas));
       return;
@@ -938,7 +1023,7 @@
     if (act === "hapus-kelas") {
       const count = GASPOL.participants(data.id).length;
       if (!confirm("Hapus kelas ini beserta materinya? Peserta yang tercatat: " + count + ".")) return;
-      GASPOL.deleteClass(data.id);
+      await sink(GASPOL.deleteClass(data.id));
       toast("Kelas dihapus.");
       go("#/admin/kelas");
       return;
@@ -946,51 +1031,58 @@
     if (act === "simpan-modul") {
       const teks = (data.teks || "").trim();
       let url = (data.tautan || "").trim();
+      let namaBerkas = data.nama_berkas || "";
+      const file = form.querySelector('input[name="berkas"]')?.files?.[0];
       if (data.tipe === "gambar") {
-        const file = form.querySelector('input[type="file"]')?.files?.[0];
-        url = file ? await readImage(file) : (data.gambar_lama || "");
+        url = file ? await readImage(file) : (data.gambar_lama || url);
+      } else if (file && (data.tipe === "dokumen" || data.tipe === "video" || data.tipe === "pdf")) {
+        const berkas = await readBerkas(file);
+        url = berkas.data;
+        namaBerkas = berkas.nama;
+      } else if (!url && data.berkas_lama) {
+        url = data.berkas_lama;
       }
       if (data.tipe === "pdf" && teks) url = "";
-      if ((data.tipe === "youtube" || data.tipe === "tautan" || (data.tipe === "video_drive" && url)) && url && !/^https:\/\//.test(url)) {
+      if ((data.tipe === "youtube" || data.tipe === "tautan" || data.tipe === "video" || data.tipe === "dokumen" || data.tipe === "video_drive") && url && !url.startsWith("data:") && !/^https:\/\//.test(url)) {
         throw new Error("Tautan harus diawali https://");
       }
-      GASPOL.saveModule({ id_modul: data.id_modul, id_kelas: data.id_kelas, judul: data.judul, tipe: data.tipe, teks: data.tipe === "pdf" ? teks : "", url_atau_file_id: url });
+      await sink(GASPOL.saveModule({ id_modul: data.id_modul, id_kelas: data.id_kelas, judul: data.judul, tipe: data.tipe, teks: data.tipe === "pdf" ? teks : "", url_atau_file_id: url, nama_berkas: namaBerkas }));
       toast("Materi disimpan.");
       go("#/admin/kelas?id=" + encodeURIComponent(data.id_kelas));
       return;
     }
-    if (act === "urut-modul") { GASPOL.moveModule(data.id, data.arah); render({ keepScroll: true }); return; }
+    if (act === "urut-modul") { await sink(GASPOL.moveModule(data.id, data.arah)); render({ keepScroll: true }); return; }
     if (act === "hapus-modul") {
       if (!confirm("Hapus materi ini?")) return;
-      GASPOL.deleteModule(data.id);
+      await sink(GASPOL.deleteModule(data.id));
       toast("Materi dihapus.");
       render({ keepScroll: true });
       return;
     }
     if (act === "buat-voucher") {
-      const made = GASPOL.generateVouchers(data);
+      const made = await sink(GASPOL.generateVouchers(data));
       toast(made.length + " kode dibuat.");
       render({ keepScroll: true });
       return;
     }
-    if (act === "voucher-status") { GASPOL.setVoucherStatus(data.kode, data.status); render({ keepScroll: true }); return; }
+    if (act === "voucher-status") { await sink(GASPOL.setVoucherStatus(data.kode, data.status)); render({ keepScroll: true }); return; }
     if (act === "hapus-voucher") {
       if (!confirm("Hapus kode " + data.kode + "?")) return;
-      GASPOL.deleteVoucher(data.kode);
+      await sink(GASPOL.deleteVoucher(data.kode));
       toast("Kode dihapus.");
       render({ keepScroll: true });
       return;
     }
     if (act === "ekspor-voucher") {
-      download("voucher-gaspol.csv", GASPOL.voucherCsv(), "text/csv;charset=utf-8");
+      download("voucher-gaspol.csv", await sink(GASPOL.voucherCsv()), "text/csv;charset=utf-8");
       toast("CSV voucher diunduh.");
       return;
     }
-    if (act === "tambah-tim") { GASPOL.saveTeam(data); toast("Akun tim dibuat."); render({ keepScroll: true }); return; }
-    if (act === "status-akun") { GASPOL.setUserStatus(data.id, data.status); render({ keepScroll: true }); return; }
+    if (act === "tambah-tim") { await sink(GASPOL.saveTeam(data)); toast("Akun tim dibuat."); render({ keepScroll: true }); return; }
+    if (act === "status-akun") { await sink(GASPOL.setUserStatus(data.id, data.status)); render({ keepScroll: true }); return; }
     if (act === "hapus-akun") {
       if (!confirm("Hapus akun ini?")) return;
-      GASPOL.deleteUser(data.id);
+      await sink(GASPOL.deleteUser(data.id));
       toast("Akun dihapus.");
       render({ keepScroll: true });
       return;
@@ -998,16 +1090,16 @@
     if (act === "simpan-pengaturan") {
       const file = form.querySelector('input[type="file"]')?.files?.[0];
       if (file) data.gambar_QRIS = await readImage(file);
-      GASPOL.saveSettings(data);
+      await sink(GASPOL.saveSettings(data));
       toast("Pengaturan disimpan.");
       render({ keepScroll: true });
       return;
     }
-    if (act === "cadangan") { download("cadangan-gaspol.json", GASPOL.exportBackup(), "application/json"); toast("Cadangan diunduh."); return; }
+    if (act === "cadangan") { download("cadangan-gaspol.json", await sink(GASPOL.exportBackup()), "application/json"); toast("Cadangan diunduh."); return; }
     if (act === "pulihkan-cadangan") {
       const file = form.querySelector('input[type="file"]')?.files?.[0];
       if (!file) throw new Error("Pilih berkas cadangan.");
-      GASPOL.importBackup(await file.text());
+      await sink(GASPOL.importBackup(await file.text()));
       toast("Cadangan dipasang.");
       go(GASPOL.user() ? "#/admin/pengaturan" : "#/masuk");
     }
@@ -1016,6 +1108,8 @@
   async function handle(act, data, el) {
     if (busy) return;
     busy = true;
+    const lokal = ["tema", "noop", "close-modal", "salin-bank", "salin-wallet", "salin-kelas", "cetak", "report", "status", "jenis", "checkout-mundur", "modul", "buka-setujui", "buka-tolak", "checkout-1"];
+    if (GASPOL.remote && lokal.indexOf(act) < 0) toast("Menghubungi spreadsheet...");
     try {
       await run(act, data, el && el.tagName === "FORM" ? el : (el ? el.closest("form") : null));
     } catch (err) {
@@ -1052,18 +1146,31 @@
     location.hash = "#/kelas/" + encodeURIComponent(id);
     return true;
   }
-  function boot() {
+  async function boot() {
     document.addEventListener("click", onClick);
     document.addEventListener("submit", onSubmit);
     document.addEventListener("input", onInput);
     document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeModal(); });
     window.addEventListener("hashchange", () => { closeModal(); render(); });
     window.addEventListener("storage", (event) => {
-      if (event.key === "gaspol_db" || event.key === "gaspol_token") {
-        GASPOL.reload();
-        render();
-      }
+      if (event.key !== "gaspol_db" && event.key !== "gaspol_token") return;
+      const done = GASPOL.reload();
+      if (done && typeof done.then === "function") done.then(() => render()).catch((err) => toast(err.message || "Spreadsheet tidak menjawab.", "bad"));
+      else render();
     });
+    if (GASPOL.urlSalah) {
+      gagalSambung = "URL Web App harus diawali https://script.google.com/macros/s/ dan diakhiri /exec.";
+      render();
+      return;
+    }
+    if (GASPOL.remote) {
+      document.getElementById("view").innerHTML = `<section class="empty"><h1>Menyambungkan spreadsheet</h1><p>Mengambil katalog dari Google Sheets.</p></section>`;
+      try {
+        await GASPOL.connect();
+      } catch (err) {
+        gagalSambung = err.message || "Spreadsheet tidak menjawab.";
+      }
+    }
     const redirected = consumeClassQuery();
     if (!redirected) {
       if (!location.hash) location.hash = "#/";

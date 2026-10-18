@@ -97,3 +97,52 @@ Tautan TikTok bio diisi dengan alamat Vercel atau GitHub Pages, bukan alamat Blo
 - Unduh cadangan JSON secara berkala.
 
 Email pada situs ini ditampilkan sebagai pratinjau. Pengiriman Gmail dan PDF ke Google Drive baru ada bila backend-nya dipasang sebagai Google Apps Script, sesuai PRD. Hosting Vercel, GitHub Pages, dan Blogspot tidak menjalankan Apps Script.
+
+## 7. Database Google Spreadsheet
+
+Satu spreadsheet menjadi database. Jangan mengganti nama lembar atau judul kolom di baris 1.
+
+| Lembar | Isi |
+| --- | --- |
+| Produk | Katalog aplikasi. `status`: aktif atau arsip. `bisa_custom`: YA atau TIDAK. |
+| Kelas | Katalog kelas dan tautan Lynk.id. |
+| Modul | Materi kelas. `tipe`: youtube, video_drive, pdf, gambar, atau tautan. |
+| Pesanan | Pesanan aplikasi dan custom. `status`: menunggu, disetujui, atau ditolak. |
+| Peserta | Akun yang boleh membuka materi. |
+| Voucher | Kode kelas. `status`: tersedia, terpakai, atau nonaktif. |
+| Pengguna | Akun. Kata sandi disimpan sebagai hash. |
+| Pengaturan | Satu baris: rekening, e-wallet, QRIS, WhatsApp, email, Lynk.id, templat email. |
+| Log | Jejak tindakan admin. |
+| Sesi dan Pulihan | Login dan kode pulihan. Dikosongkan sampai aplikasi menulis ke sana. |
+
+Berkas tidak disimpan di sel. Buktinya berupa ID file di folder Drive `GASPOL_Berkas`: `Bukti_Transfer`, `Materi_Kelas`, `Gambar_Produk`, dan `Bukti_Pesanan_PDF`.
+
+Membuat spreadsheet:
+
+1. Buka [script.google.com](https://script.google.com) dan buat proyek baru.
+2. Hapus isi `Code.gs`, tempel seluruh isi `gas/Kode.gs`, lalu simpan.
+3. Pilih fungsi `siapkanDatabase`, lalu **Run**. Izinkan akses saat diminta.
+4. Buka **Executions**. Salin URL spreadsheet dari log.
+
+Menjalankan fungsi itu lagi tidak menghapus data.
+
+## 8. Menghubungkan spreadsheet ke situs GitHub
+
+GitHub hanya menyajikan halaman. Spreadsheet dibaca lewat Web App Google Apps Script. Semua pengunjung lalu memakai data yang sama.
+
+1. Di proyek Apps Script yang sama, buat berkas baru bernama `Api.gs`.
+2. Tempel seluruh isi `gas/Api.gs`. `Kode.gs` harus tetap ada di proyek itu.
+3. Jalankan `siapkanDatabase` sekali, kalau spreadsheet belum dibuat.
+4. Pilih **Deploy → New deployment → Web app**.
+   - Execute as: **Me**
+   - Who has access: **Anyone**
+5. Salin URL yang berakhiran `/exec`. Bukan URL `/dev`.
+6. Buka `js/config.js`. Isi `window.GASPOL_URL` dengan URL itu, termasuk tanda kutip.
+7. Simpan, lalu unggah `js/config.js`, `js/store.js`, `js/app.js`, dan `index.html` ke GitHub.
+8. Tunggu GitHub Pages selesai, lalu buka situs. Katalog harus sama dengan isi spreadsheet.
+
+Ubah harga di lembar **Produk**, muat ulang situs, dan harga di katalog ikut berubah. Pesanan baru muncul di lembar **Pesanan**.
+
+Setelah mengubah `Api.gs`, buka **Deploy → Manage deployments → Edit → New version → Deploy**. URL `/exec` tetap, tetapi situs memakai kode yang baru.
+
+Zona waktu proyek Apps Script diatur ke **Asia/Jakarta** lewat **Project Settings**. Akun contoh di spreadsheet: `atang@gaspol.id` / `GaspolAdmin1`. Ganti kata sandi itu sebelum situs dibuka untuk pembeli sungguhan.

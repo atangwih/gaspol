@@ -14,6 +14,81 @@
 
   let db = null;
 
+  function alamatJembatan() {
+    if (typeof window === "undefined" || !window.GASPOL_URL) return "";
+    const match = String(window.GASPOL_URL).trim().match(/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec/);
+    return match ? match[0] : "";
+  }
+  const REMOTE_URL = alamatJembatan();
+  const REMOTE = !!REMOTE_URL;
+  const URL_SALAH = typeof window !== "undefined" && !!String(window.GASPOL_URL || "").trim() && !REMOTE;
+
+  function dbKosong() {
+    return {
+      meta: { versi: VERSION, dibuat: "" },
+      pengaturan: {
+        nama_web: "GASPOL",
+        rekening_bank: "",
+        e_wallet: "",
+        gambar_QRIS: "",
+        kontak_WhatsApp: "",
+        email_admin: "",
+        link_lynk: "https://lynk.id/",
+        templat_email: ""
+      },
+      pengguna: [],
+      produk: [],
+      kelas: [],
+      modul: [],
+      pesanan: [],
+      peserta: [],
+      voucher: [],
+      log: [],
+      sesi: [],
+      reset: []
+    };
+  }
+
+  function rapikanCuplikan(snap) {
+    const next = snap && typeof snap === "object" ? snap : dbKosong();
+    if (!next.pengaturan) next.pengaturan = dbKosong().pengaturan;
+    ["pengguna", "produk", "kelas", "modul", "pesanan", "peserta", "voucher", "log", "sesi", "reset"].forEach((key) => {
+      if (!Array.isArray(next[key])) next[key] = [];
+    });
+    next.produk.forEach((item) => {
+      item.harga_mulai = Number(item.harga_mulai) || 0;
+      item.urutan = Number(item.urutan) || 0;
+      item.bisa_custom = item.bisa_custom === true || String(item.bisa_custom).toUpperCase() === "YA";
+    });
+    next.kelas.forEach((item) => { item.harga = Number(item.harga) || 0; });
+    next.modul.forEach((item) => { item.urutan = Number(item.urutan) || 0; });
+    next.pesanan.forEach((item) => { item.nominal = Number(item.nominal) || 0; });
+    next.sesi.forEach((item) => { item.exp = Number(item.exp) || 0; });
+    return next;
+  }
+
+  function kirim(aksi, data) {
+    const tokenNow = localStorage.getItem(TOKEN_KEY) || "";
+    return fetch(REMOTE_URL, {
+      method: "POST",
+      cache: "no-store",
+      body: JSON.stringify({ aksi: aksi, token: tokenNow, data: data || {} })
+    }).then(async (res) => {
+      const text = await res.text();
+      let payload;
+      try {
+        payload = JSON.parse(text.replace(/^\)]\}',?\s*/, ""));
+      } catch (err) {
+        throw new Error("Spreadsheet tidak menjawab. Periksa URL Web App yang diakhiri /exec, lalu pasang ulang versi terbaru.");
+      }
+      if (!payload.ok) throw new Error(payload.pesan || "Permintaan gagal.");
+      if (payload.hapusToken) localStorage.removeItem(TOKEN_KEY);
+      else if (payload.token) localStorage.setItem(TOKEN_KEY, payload.token);
+      if (payload.cuplikan) db = rapikanCuplikan(payload.cuplikan);
+      return payload.hasil;
+    });
+  }
+
   function rotr(x, n) {
     return (x >>> n) | (x << (32 - n));
   }
@@ -115,6 +190,11 @@
     throw new Error(message);
   }
 
+  function coverArt(judul, atas, bawah) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${atas}"/><stop offset="1" stop-color="${bawah}"/></linearGradient></defs><rect width="800" height="450" fill="url(#g)"/><circle cx="680" cy="80" r="74" fill="rgba(255,255,255,0.16)"/><text x="48" y="250" fill="#ffffff" font-family="Arial" font-size="46" font-weight="700">${judul}</text></svg>`;
+    return "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(svg);
+  }
+
   function diagram() {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="880" height="360" viewBox="0 0 880 360">
       <rect width="880" height="360" rx="28" fill="#F0FDFA"/>
@@ -163,9 +243,9 @@
         { id_produk: "PRD-LAMA", nama: "Paket Lama", deskripsi: "Contoh produk arsip. Tidak tampil di katalog.", harga_mulai: 50000, bisa_custom: false, gambar_url: "", status: "arsip", urutan: 9 }
       ],
       kelas: [
-        { id_kelas: "KLS-NOL", judul: "Web Tanpa Koding dari Nol", deskripsi: "Dipandu langkah demi langkah sampai web pertama Anda hidup, tanpa membeli hosting.", harga: 149000, link_lynk: "https://lynk.id/", gambar_url: "", status: "aktif" },
-        { id_kelas: "KLS-GAS", judul: "Merakit Aplikasi Google Sendiri", deskripsi: "Pahami alur data, formulir, dan tampilan agar Anda bisa mengubah aplikasi sendiri.", harga: 199000, link_lynk: "https://lynk.id/", gambar_url: "", status: "aktif" },
-        { id_kelas: "KLS-JUAL", judul: "Jualan Produk Digital", deskripsi: "Siapkan penawaran, kode voucher, dan cara menyerahkan akses ke pembeli.", harga: 99000, link_lynk: "https://lynk.id/", gambar_url: "", status: "aktif" }
+        { id_kelas: "KLS-NOL", judul: "Web Tanpa Koding dari Nol", deskripsi: "Dipandu langkah demi langkah sampai web pertama Anda hidup, tanpa membeli hosting.", harga: 149000, link_lynk: "https://lynk.id/", gambar_url: coverArt("Web dari nol", "#0f766e", "#134e4a"), status: "aktif" },
+        { id_kelas: "KLS-GAS", judul: "Merakit Aplikasi Google Sendiri", deskripsi: "Pahami alur data, formulir, dan tampilan agar Anda bisa mengubah aplikasi sendiri.", harga: 199000, link_lynk: "https://lynk.id/", gambar_url: coverArt("Aplikasi Google", "#115e59", "#0d9488"), status: "aktif" },
+        { id_kelas: "KLS-JUAL", judul: "Jualan Produk Digital", deskripsi: "Siapkan penawaran, kode voucher, dan cara menyerahkan akses ke pembeli.", harga: 99000, link_lynk: "https://lynk.id/", gambar_url: coverArt("Jualan digital", "#155e75", "#0f766e"), status: "aktif" }
       ],
       modul: [
         { id_modul: "MOD-1", id_kelas: "KLS-NOL", judul: "Mulai dari pekerjaan, bukan dari tampilan", tipe: "pdf", url_atau_file_id: "teks:Web sederhana bisa hidup di akun Google Anda. Anda tidak perlu membeli hosting.\n\nTentukan satu pekerjaan yang berulang, misalnya mencatat pesanan. Tuliskan data apa yang ingin disimpan: nama, pesanan, dan tanggal.\n\nSetelah datanya jelas, barulah buat tampilan yang memudahkan orang mengisinya dari ponsel.", urutan: 1 },
@@ -239,6 +319,10 @@
   }
 
   function init() {
+    if (REMOTE) {
+      db = dbKosong();
+      return;
+    }
     db = load();
     pruneSessions();
     persist();
@@ -648,6 +732,12 @@
     row.status = input.status === "arsip" ? "arsip" : "aktif";
     if (input.clear_gambar === "ya") row.gambar_url = "";
     else if (gambar) row.gambar_url = gambar;
+    const demo = clean(input.tautan_demo, 240);
+    const aplikasi = clean(input.tautan_aplikasi, 240);
+    if (demo && !/^https:\/\//.test(demo)) fail("Tautan demo harus diawali https://");
+    if (aplikasi && !/^https:\/\//.test(aplikasi)) fail("Tautan aplikasi harus diawali https://");
+    row.tautan_demo = demo;
+    row.tautan_aplikasi = aplikasi;
     writeLog("simpan_produk", row.nama);
     persist();
     return row;
@@ -693,6 +783,10 @@
     row.harga = uang(input.harga);
     row.link_lynk = link || "https://lynk.id/";
     row.status = input.status === "arsip" ? "arsip" : "aktif";
+    const gambar = String(input.gambar_url || "");
+    if (gambar && !gambar.startsWith("data:image/") && !gambar.startsWith("https://")) fail("Gambar kelas tidak valid.");
+    if (input.clear_gambar === "ya") row.gambar_url = "";
+    else if (gambar) row.gambar_url = gambar;
     writeLog("simpan_kelas", row.judul);
     persist();
     return row;
@@ -715,15 +809,19 @@
     const judul = clean(input.judul, 120);
     const tipe = clean(input.tipe, 20);
     if (judul.length < 2) fail("Judul modul belum diisi.");
-    if (!["video_drive", "youtube", "pdf", "gambar", "tautan"].includes(tipe)) fail("Tipe materi tidak dikenali.");
+    if (!["video_drive", "youtube", "pdf", "gambar", "tautan", "dokumen", "video"].includes(tipe)) fail("Tipe materi tidak dikenali.");
     let url = String(input.url_atau_file_id || "").trim();
     if (tipe === "pdf" && input.teks) url = "teks:" + String(input.teks).trim().slice(0, 5000);
     if (tipe === "gambar") {
       if (url && !url.startsWith("data:image/") && !url.startsWith("https://")) fail("Gambar materi tidak valid.");
+    } else if (tipe === "dokumen" || tipe === "video" || url.startsWith("data:")) {
+      if (url.startsWith("data:")) {
+        if (url.length > 2200000) fail("Berkas masih terlalu besar. Tempel tautan https.");
+      } else if (url && !/^https:\/\//.test(url)) fail("Tautan materi harus diawali https://");
     } else if (tipe !== "pdf" || !url.startsWith("teks:")) {
       if (url && tipe !== "video_drive" && !/^https:\/\//.test(url) && tipe !== "youtube") fail("Tautan materi harus diawali https://");
     }
-    if (!url && tipe !== "video_drive") fail("Isi tautan atau isi materi.");
+    if (!url && tipe !== "video_drive") fail("Isi tautan, unggah berkas, atau tulis materi.");
     let row = input.id_modul ? db.modul.find((item) => item.id_modul === input.id_modul) : null;
     if (!row) {
       const siblings = modulesOf(kelas.id_kelas);
@@ -733,6 +831,7 @@
     row.judul = judul;
     row.tipe = tipe;
     row.url_atau_file_id = url;
+    row.nama_berkas = clean(input.nama_berkas, 140);
     row.id_kelas = kelas.id_kelas;
     writeLog("simpan_modul", row.judul);
     persist();
@@ -973,7 +1072,13 @@
   window.GASPOL = {
     ROLES,
     init,
-    reload,
+    reload: () => {
+      if (REMOTE) return kirim("baca", {});
+      reload();
+    },
+    connect: () => REMOTE ? kirim("baca", {}) : Promise.resolve(true),
+    remote: REMOTE,
+    urlSalah: URL_SALAH,
     user: () => publicUser(currentUser()),
     nameOf: (id) => {
       const person = userById(id);
@@ -996,58 +1101,61 @@
     productById,
     classById,
     modulesOf,
-    register,
-    login,
-    logout,
-    requestReset,
-    confirmReset,
-    changePassword,
-    createOrder,
-    attachProof,
-    createCustom,
+    register: (input) => REMOTE ? kirim("register", input) : register(input),
+    login: (email, password) => REMOTE ? kirim("login", { email: email, password: password }) : login(email, password),
+    logout: () => REMOTE ? kirim("logout", {}) : logout(),
+    requestReset: (email) => REMOTE ? kirim("requestReset", { email: email }) : requestReset(email),
+    confirmReset: (email, code, password) => REMOTE ? kirim("confirmReset", { email: email, kode: code, password: password }) : confirmReset(email, code, password),
+    changePassword: (lama, baru) => REMOTE ? kirim("changePassword", { lama: lama, baru: baru }) : changePassword(lama, baru),
+    createOrder: (input) => REMOTE ? kirim("createOrder", input) : createOrder(input),
+    attachProof: (id, gambar) => REMOTE ? kirim("attachProof", { id: id, gambar: gambar }) : attachProof(id, gambar),
+    createCustom: (input) => REMOTE ? kirim("createCustom", input) : createCustom(input),
     myOrders,
     allOrders,
     visibleOrder,
-    approve: (id, note) => decide(id, "disetujui", note),
-    reject: (id, note) => decide(id, "ditolak", note),
-    redeem,
+    approve: (id, note) => REMOTE ? kirim("approve", { id: id, catatan: note }) : decide(id, "disetujui", note),
+    reject: (id, note) => REMOTE ? kirim("reject", { id: id, alasan: note }) : decide(id, "ditolak", note),
+    redeem: (code) => REMOTE ? kirim("redeem", { kode: code }) : redeem(code),
     canAccess,
     myClasses,
     learnModules,
     participants,
-    saveProduct,
-    moveProduct,
-    deleteProduct,
-    saveClass,
-    deleteClass,
-    saveModule,
-    moveModule,
-    deleteModule,
-    generateVouchers,
-    setVoucherStatus,
-    deleteVoucher,
+    saveProduct: (input) => REMOTE ? kirim("saveProduct", input) : saveProduct(input),
+    moveProduct: (id, dir) => REMOTE ? kirim("moveProduct", { id: id, arah: dir }) : moveProduct(id, dir),
+    deleteProduct: (id) => REMOTE ? kirim("deleteProduct", { id: id }) : deleteProduct(id),
+    saveClass: (input) => REMOTE ? kirim("saveClass", input) : saveClass(input),
+    deleteClass: (id) => REMOTE ? kirim("deleteClass", { id: id }) : deleteClass(id),
+    saveModule: (input) => REMOTE ? kirim("saveModule", input) : saveModule(input),
+    moveModule: (id, dir) => REMOTE ? kirim("moveModule", { id: id, arah: dir }) : moveModule(id, dir),
+    deleteModule: (id) => REMOTE ? kirim("deleteModule", { id: id }) : deleteModule(id),
+    generateVouchers: (input) => REMOTE ? kirim("generateVouchers", input) : generateVouchers(input),
+    setVoucherStatus: (kode, status) => REMOTE ? kirim("setVoucherStatus", { kode: kode, status: status }) : setVoucherStatus(kode, status),
+    deleteVoucher: (kode) => REMOTE ? kirim("deleteVoucher", { kode: kode }) : deleteVoucher(kode),
     vouchers: () => {
       requireMain();
       return db.voucher.slice();
     },
-    voucherCsv,
-    saveTeam,
-    setUserStatus,
-    deleteUser,
+    voucherCsv: () => REMOTE ? kirim("voucherCsv", {}) : voucherCsv(),
+    saveTeam: (input) => REMOTE ? kirim("saveTeam", input) : saveTeam(input),
+    setUserStatus: (id, status) => REMOTE ? kirim("setUserStatus", { id: id, status: status }) : setUserStatus(id, status),
+    deleteUser: (id) => REMOTE ? kirim("deleteUser", { id: id }) : deleteUser(id),
     users: () => {
       requireMain();
       return db.pengguna.map(publicUser);
     },
-    saveSettings,
+    saveSettings: (input) => REMOTE ? kirim("saveSettings", input) : saveSettings(input),
     emailText,
     report,
     logs: () => {
       requireStaff();
       return db.log.slice(0, 12);
     },
-    exportBackup,
-    importBackup,
-    resetDemo,
+    exportBackup: () => REMOTE ? kirim("exportBackup", {}) : exportBackup(),
+    importBackup: (raw) => REMOTE ? kirim("importBackup", { berkas: raw }) : importBackup(raw),
+    resetDemo: () => {
+      if (REMOTE) throw new Error("Data di spreadsheet tidak dikembalikan dari situs. Ubah isinya langsung di Google Sheets.");
+      resetDemo();
+    },
     needsProof
   };
 
